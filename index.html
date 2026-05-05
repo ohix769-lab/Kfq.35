@@ -498,7 +498,7 @@ function render() {
         <div class="node-header"></div>
         <div class="node-body">
           <div class="node-name">${node.name}</div>
-           <div class="node-hint">اضغط لإضافة ابن</div> 
+          <div class="node-hint">اضغط لإضافة ابن</div>
         </div>
       </div>
       <div class="add-child-btn" title="إضافة ابن">+</div>`;
@@ -617,23 +617,23 @@ function openEditModal(id) {
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
-   وظيفة     حفظModal () { saveModal() {
- اسم  المحتوى = document.getElementById ('f-name').value.trim () ؛ const name = document.getElementById('f-name').value.trim();
- إذا (!اسم) { document.getElementById ('f-name').style.borderColor = '#e74c3c'; إرجاع; } if (!name) { document.getElementById('f-name').style.borderColor = '#e74c3c'; return; }
- document.getElementById ('f-name').style.borderColor = "؛ document.getElementById('f-name').style.borderColor = '';
- إذا (  الوضع    النموذجي == 'الجذر' |   الوضع    الموحد ===    'إضافة-الطفل') { if (modalMode === 'root' || modalMode === 'add-child') {
- nodes.push ({ id: String (Date.now ()) ، الاسم،  الوالد: modalParentId }) ؛ nodes.push({ id: String(Date.now()), name, parent: modalParentId });
- } وإلا  إذا (الوضع  النموذجي == 'تحرير') { } else if (modalMode === 'edit') {
- عقدة  كونست = nodes.find (n => n.id == modalNodeId) ؛ const node = nodes.find(n => n.id === modalNodeId);
- إذا (العقدة) node.name = الاسم  ؛ if (node) node.name = name;
- } }
- CloseModal (); render (); applyTransform (); closeModal(); render(); applyTransform();
+function saveModal() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').style.borderColor = '#e74c3c'; return; }
+  document.getElementById('f-name').style.borderColor = '';
+  if (modalMode === 'root' || modalMode === 'add-child') {
+    nodes.push({ id: String(Date.now()), name, parent: modalParentId });
+  } else if (modalMode === 'edit') {
+    const node = nodes.find(n => n.id === modalNodeId);
+    if (node) node.name = name;
+  }
+  closeModal(); render(); applyTransform();
 }
 
-document.getElementById ('f-name').addEventListener ('keydown', e => {.getElementById('f-name').addEventListener('keydown', e => {
+document.getElementById('f-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') saveModal();
   if (e.key === 'Escape') closeModal();
-}););
+});
 
 /* ══════════ PRINT ══════════ */
 function printTree() {
@@ -642,14 +642,14 @@ function printTree() {
   setTimeout(() => { window.print(); scale = s.scale; tx = s.tx; ty = s.ty; applyTransform(); }, 300);
 }
 
-}
+/* ══════════ KEYBOARD ══════════ */
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === '+' || e.key === '=') zoom(.15);
   if (e.key === '-') zoom(-.15);
   if (e.key === '0') resetView();
   if (e.key === 'Escape') { closeModal(); hideCtxMenu(); }
-}););
+});
 
 /* ══════════ INIT ══════════ */
 render();
@@ -662,4 +662,4 @@ setTimeout(() => {
 setTimeout(() => document.getElementById('tip').classList.add('hide'), 4500);
 </script>
 
-</الجسم.
+</body
