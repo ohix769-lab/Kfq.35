@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شجرة العائلة</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dark: #8b6914;
+    --cream: #fdf6e3;
+    --brown: #3d2b1f;
+    --brown-light: #6b4c36;
+    --green: #2d5a3d;
+    --green-light: #4a8c65;
+    --shadow: rgba(61,43,31,0.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Tajawal', sans-serif;
+    background: var(--cream);
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(135deg, var(--brown) 0%, var(--green) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,.35);
+  }
+
+  header h1 {
+    font-family: 'Amiri', serif;
+    font-size: 1.4rem;
+    color: var(--gold-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toolbar { display: flex; align-items: center; gap: 8px; }
+
+  .btn-icon {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,.15);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,.25); transform: scale(1.07); }
+
+  .zoom-display {
+    color: var(--gold-light);
+    font-size: .82rem;
+    min-width: 42px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    padding: 0 14px;
+    height: 36px;
+    background: var(--gold);
+    color: var(--brown);
+    font-weight: 700;
+    font-family: 'Tajawal', sans-serif;
+    font-size: .85rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(201,168,76,.4);
+    transition: all .2s;
+  }
+  .btn-primary:hover { background: var(--gold-light); transform: scale(1.04); }
+
+  #canvas-wrap {
+    position: fixed;
+    top: 60px; left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(45,90,61,.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 70%, rgba(201,168,76,.06) 0%, transparent 60%),
+      url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23c9a84c' stroke-opacity='.07' stroke-width='.5'%3E%3Cpath d='M0 0h40v40H0z'/%3E%3C/g%3E%3C/svg%3E"),
+      var(--cream);
+    cursor: grab;
+  }
+  #canvas-wrap.dragging { cursor: grabbing; }
+
+  #tree-canvas {
+    position: absolute;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  #svg-lines {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* NODE */
+  .node {
+    position: absolute;
+    width: 150px;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .node-card {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px var(--shadow), 0 1px 0 rgba(255,255,255,.7) inset;
+    transition: transform .18s, box-shadow .18s;
+  }
+  .node:hover .node-card {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 12px 36px var(--shadow);
+  }
+
+  .node-header { height: 8px; width: 100%; }
+
+  .node-body {
+    padding: 10px 10px 12px;
+    background: #fff;
+    border: 1px solid rgba(201,168,76,.2);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+  }
+
+  .node-name {
+    font-family: 'Amiri', serif;
+    font-size: .97rem;
+    font-weight: 700;
+    color: var(--brown);
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  .node-hint {
+    font-size: .68rem;
+    color: #bbb;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* + button below node */
+  .add-child-btn {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 22px; height: 22px;
+    background: var(--green);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 1rem;
+    line-height: 22px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    transition: transform .18s, opacity .18s;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .node:hover .add-child-btn {
+    transform: translateX(-50%) scale(1.1);
+    pointer-events: auto;
+  }
+
+  /* generation colours */
+  .gen-0 .node-header { background: linear-gradient(90deg, var(--gold-dark), var(--gold)); }
+  .gen-1 .node-header { background: linear-gradient(90deg, var(--green), var(--green-light)); }
+  .gen-2 .node-header { background: linear-gradient(90deg, var(--brown-light), #a06040); }
+  .gen-3 .node-header { background: linear-gradient(90deg, #4a6fa5, #6b9bd2); }
+  .gen-4 .node-header { background: linear-gradient(90deg, #7b4f9e, #a87cc9); }
+
+  /* LINES */
+  .tree-line {
+    stroke: var(--gold);
+    stroke-width: 1.8;
+    fill: none;
+    opacity: .42;
+    stroke-dasharray: 5 3;
+    animation: dash 18s linear infinite;
+  }
+  @keyframes dash { to { stroke-dashoffset: -200; } }
+
+  /* CONTEXT MENU */
+  #ctx-menu {
+    position: fixed;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    border: 1.5px solid rgba(201,168,76,.25);
+    z-index: 400;
+    min-width: 170px;
+    overflow: hidden;
+    display: none;
+  }
+  #ctx-menu.open { display: block; animation: popIn .15s cubic-bezier(.34,1.56,.64,1); }
+
+  .ctx-item {
+    padding: 11px 18px;
+    font-size: .88rem;
+    cursor: pointer;
+    color: var(--brown);
+    display: flex; align-items: center; gap: 10px;
+    transition: background .15s;
+    font-family: 'Tajawal', sans-serif;
+  }
+  .ctx-item:hover { background: var(--cream); }
+  .ctx-item.danger { color: #c0392b; }
+  .ctx-item.danger:hover { background: #fff5f5; }
+  .ctx-divider { height: 1px; background: #f0ece6; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(30,20,10,.5);
+    backdrop-filter: blur(4px);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 20px;
+    padding: 26px 28px 24px;
+    width: min(340px, 94vw);
+    box-shadow: 0 24px 80px rgba(0,0,0,.25);
+    animation: popIn .22s cubic-bezier(.34,1.56,.64,1);
+    position: relative;
+    border-top: 5px solid var(--gold);
+  }
+  @keyframes popIn { from { transform: scale(.88); opacity: 0; } }
+
+  .modal h2 {
+    font-family: 'Amiri', serif;
+    color: var(--brown);
+    font-size: 1.25rem;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .modal-sub {
+    font-size: .78rem;
+    color: #aaa;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: .8rem;
+    color: var(--brown-light);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  input#f-name {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e0d8cc;
+    border-radius: 10px;
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+    color: var(--brown);
+    outline: none;
+    transition: border-color .2s;
+    background: var(--cream);
+    text-align: right;
+  }
+  input#f-name:focus { border-color: var(--gold); }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+    justify-content: flex-end;
+  }
+
+  .btn-save {
+    padding: 10px 22px;
+    background: linear-gradient(135deg, var(--green), var(--green-light));
+    color: #fff;
+    border-radius: 10px;
+    font-size: .9rem;
+    font-weight: 700;
+    font-family: 'Tajawal', sans-serif;
+    border: none;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .btn-save:hover { filter: brightness(1.12); }
+
+  .btn-cancel {
+    padding: 10px 18px;
+    background: #f0ece6;
+    color: #888;
+    border-radius: 10px;
+    font-size: .9rem;
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-cancel:hover { background: #e8e2da; }
+
+  .close-btn {
+    position: absolute;
+    top: 12px; left: 12px;
+    width: 28px; height: 28px;
+    background: #f0ece6;
+    border: none; border-radius: 50%;
+    cursor: pointer; font-size: .9rem; color: #888;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .close-btn:hover { background: #e0dbd2; color: var(--brown); }
+
+  /* tip */
+  #tip {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(61,43,31,.82);
+    color: var(--gold-light);
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: .78rem;
+    pointer-events: none;
+    transition: opacity 1s;
+    white-space: nowrap;
+  }
+  #tip.hide { opacity: 0; }
+
+  /* PRINT */
+  @media print {
+    header, #tip, #ctx-menu { display: none !important; }
+    body { overflow: visible !important; background: #fff !important; }
+    #canvas-wrap { position: static !important; width: 100% !important; height: auto !important; overflow: visible !important; }
+    #tree-canvas { position: static !important; transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 شجرة العائلة</h1>
+  <div class="toolbar">
+    <button class="btn-icon" onclick="zoom(-0.15)">−</button>
+    <span class="zoom-display" id="zoom-label">100%</span>
+    <button class="btn-icon" onclick="zoom(0.15)">+</button>
+    <button class="btn-icon" onclick="resetView()" title="إعادة الضبط">⊙</button>
+    <button class="btn-primary" onclick="openRootModal()">＋ إضافة جد</button>
+    <button class="btn-icon" onclick="printTree()" title="طباعة">🖨</button>
+  </div>
+</header>
+
+<div id="canvas-wrap">
+  <div id="tree-canvas">
+    <svg id="svg-lines"></svg>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAddChild()">➕ إضافة ابن</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item" onclick="ctxEdit()">✏️ تعديل الاسم</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item danger" onclick="ctxDelete()">🗑 حذف</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <h2 id="modal-title">إضافة فرد</h2>
+    <p class="modal-sub" id="modal-sub"></p>
+    <label>الاسم</label>
+    <input id="f-name" placeholder="أدخل الاسم الكامل" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+      <button class="btn-save" onclick="saveModal()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="tip">💡 اضغط على الاسم لإضافة ابن • كليك يمين للتعديل والحذف</div>
+
+<script>
+/* ══════════ DATA ══════════ */
+let nodes = [{"id":"1777656246880","name":"فرج","parent":null},{"id":"1777656517594","name":"راشد","parent":"1777656246880"},{"id":"1777656534955","name":"محمد","parent":"1777656517594"},{"id":"1777656546877","name":"فهيد","parent":"1777656534955"},{"id":"1777656557472","name":"راشد","parent":"1777656546877"},{"id":"1777656576977","name":"فهيد","parent":"1777656557472"},{"id":"1777658475864","name":"فرج","parent":"1777656517594"},{"id":"1777658497938","name":"ظافر","parent":"1777656517594"},{"id":"1777658520221","name":"عامر","parent":"1777656534955"},{"id":"1777658526161","name":"فرج","parent":"1777656534955"},{"id":"1777658532781","name":"ظافر","parent":"1777656534955"},{"id":"1777658545864","name":"عبدالله","parent":"1777658520221"},{"id":"1777658551583","name":"محمد","parent":"1777658520221"},{"id":"1777658573494","name":"محمد","parent":"1777656546877"},{"id":"1777658587851","name":"شينان","parent":"1777658532781"},{"id":"1777658594223","name":"محمد","parent":"1777658532781"},{"id":"1777658601024","name":"عبدالله","parent":"1777658532781"},{"id":"1777658648515","name":"عامر","parent":"1777658526161"},{"id":"1777658654547","name":"مبارك","parent":"1777658526161"},{"id":"1777658680165","name":"فهيد","parent":"1777658475864"},{"id":"1777658686187","name":"مبارك","parent":"1777658475864"},{"id":"1777658693321","name":"ظافر","parent":"1777658475864"},{"id":"1777658720354","name":"عبدالله","parent":"1777658497938"},{"id":"1777658724870","name":"حمد","parent":"1777658497938"},{"id":"1777658929338","name":"محمد","parent":"1777656557472"},{"id":"1777658936201","name":"عبدالله","parent":"1777656557472"},{"id":"p1777675191173","name":"راشد","parent":"1777656576977"},{"id":"p1777675198217","name":"فهد","parent":"p1777675191173"},{"id":"p1777675205662","name":"طلال","parent":"p1777675191173"},{"id":"p1777675213961","name":"محمد","parent":"1777656576977"},{"id":"p1777675226901","name":"عبدالملك","parent":"p1777675213961"},{"id":"p1777675234221","name":"فهيد","parent":"p1777675213961"},{"id":"p1777675243518","name":"عبدالله","parent":"1777656576977"},{"id":"p1777675250056","name":"حمد","parent":"1777656576977"},{"id":"p1777675269611","name":"سعد","parent":"1777656576977"},{"id":"p1777675278349","name":"سلطان","parent":"1777656576977"},{"id":"p1777675285868","name":"بدر","parent":"1777656576977"},{"id":"p1777675294190","name":"خالد","parent":"1777656576977"},{"id":"p1777675303387","name":"ذعار","parent":"1777656576977"},{"id":"p1777675312857","name":"عبدالعزيز","parent":"1777656576977"},{"id":"p1777675322048","name":"فيصل","parent":"1777656576977"},{"id":"p1777675332315","name":"خليل","parent":"1777656576977"},{"id":"p1777675340319","name":"عايض","parent":"1777656576977"},{"id":"p1777675356502","name":"زايد","parent":"1777656576977"},{"id":"p1777675365634","name":"مبارك","parent":"1777656576977"},{"id":"p1777739388018","name":"محمد","parent":"p1777675243518"},{"id":"p1777739395125","name":"خالد","parent":"p1777675243518"},{"id":"p1777739401567","name":"راشد","parent":"p1777675250056"},{"id":"p1777739408292","name":"سعود","parent":"p1777675250056"},{"id":"p1777739416136","name":"عبدالله","parent":"p1777675250056"},{"id":"p1777739424230","name":"فهيد","parent":"p1777675269611"},{"id":"p1777739438537","name":"فهيد","parent":"1777658929338"},{"id":"p1777739445159","name":"راشد","parent":"1777658929338"},{"id":"p1777739459651","name":"عبدالله","parent":"1777658929338"},{"id":"p1777739469690","name":"مرزوق","parent":"1777658929338"},{"id":"p1777739475460","name":"متعب","parent":"1777658929338"},{"id":"p1777739489480","name":"راشد","parent":"1777658936201"},{"id":"p1777739494773","name":"محمد","parent":"1777658936201"},{"id":"p1777767244907","name":"ماجد","parent":"p1777675322048"},{"id":"p1777767339008","name":"حمد","parent":"1777658545864"},{"id":"p1777767344879","name":"محمد","parent":"1777658545864"},{"id":"p1777767352391","name":"فهيد","parent":"1777658545864"},{"id":"p1777767381167","name":"عبدالله","parent":"p1777767344879"},{"id":"p1777767405088","name":"فهيد","parent":"p1777767344879"},{"id":"p1777767415892","name":"مبارك","parent":"p1777767344879"},{"id":"p1777767427848","name":"ظافر","parent":"p1777767344879"},{"id":"p1777767434913","name":"راشد","parent":"p1777767344879"},{"id":"p1777767478408","name":"فهاد","parent":"1777658551583"},{"id":"p1777767485619","name":"عامر","parent":"1777658551583"},{"id":"p1777767940293","name":"ظافر/متوفي","parent":"1777658587851"},{"id":"p1777767947429","name":"محمد","parent":"1777658587851"},{"id":"p1777767953346","name":"ظافر","parent":"1777658587851"},{"id":"p1777767963940","name":"سعد","parent":"1777658587851"},{"id":"p1777767978738","name":"شينان","parent":"p1777767947429"},{"id":"p1777767990289","name":"شينان","parent":"1777658594223"},{"id":"p1777767997252","name":"محمد","parent":"p1777767990289"},{"id":"p1777768004676","name":"راشد","parent":"1777658594223"},{"id":"p1777768031517","name":"ظافر","parent":"1777658594223"},{"id":"p1777768039304","name":"مبارك","parent":"1777658594223"},{"id":"p1777768081147","name":"عبدالله /متوفي","parent":"1777658594223"},{"id":"p1777768089536","name":"عبدالله","parent":"1777658594223"},{"id":"p1777768163269","name":"فهيد","parent":"1777658594223"},{"id":"p1777768169440","name":"سعود","parent":"1777658594223"},{"id":"p1777768177640","name":"مشعل","parent":"1777658594223"},{"id":"p1777768356482","name":"محمد","parent":"p1777768163269"},{"id":"p1777768529408","name":"محمد","parent":"p1777768089536"},{"id":"p1777768535810","name":"راكان","parent":"p1777768089536"},{"id":"p1777941884904","name":"محمد","parent":"p1777768004676"},{"id":"p1777941893781","name":"عبدالله","parent":"p1777768004676"},{"id":"p1777941904011","name":"حمد","parent":"p1777768004676"},{"id":"p1777941914111","name":"عبدالرحمن","parent":"p1777768004676"},{"id":"p1777941933384","name":"محمد","parent":"p1777768039304"},{"id":"p1777941942269","name":"فارس","parent":"p1777768039304"},{"id":"p1777941952293","name":"سلطان","parent":"p1777768039304"},{"id":"p1777942204344","name":"فيصل","parent":"1777658680165"},{"id":"p1777942211407","name":"ناصر","parent":"1777658680165"},{"id":"p1777942218424","name":"زامل","parent":"1777658680165"},{"id":"p1777942224403","name":"فرج","parent":"1777658680165"},{"id":"p1777942232741","name":"مبارك","parent":"1777658680165"},{"id":"p1777942264768","name":"مشاري","parent":"p1777942211407"},{"id":"p1777942272270","name":"راكان","parent":"p1777942211407"},{"id":"p1777942289272","name":"فهيد","parent":"p1777942218424"},{"id":"p1777942297429","name":"بريك","parent":"p1777942218424"},{"id":"p1777942304295","name":"فرج","parent":"p1777942218424"},{"id":"p1777942345258","name":"فهيد","parent":"p1777942224403"},{"id":"p1777942373404","name":"زامل","parent":"p1777942224403"},{"id":"p1777942379684","name":"محمد","parent":"p1777942224403"},{"id":"p1777942387292","name":"سلطان","parent":"p1777942224403"},{"id":"p1777942394542","name":"مبارك","parent":"p1777942224403"},{"id":"p1777942422945","name":"عبدالله","parent":"p1777942224403"},{"id":"p1777942429979","name":"ناصر","parent":"p1777942224403"},{"id":"p1777942436498","name":"بدر","parent":"p1777942224403"},{"id":"p1777942454094","name":"نايف","parent":"p1777942232741"},{"id":"p1777942492576","name":"مبارك","parent":"1777658693321"},{"id":"p1777942502506","name":"مناحي","parent":"1777658693321"},{"id":"p1777942539521","name":"حمد","parent":"p1777942492576"}];
+let nextId = Date.now();
+
+let modalMode = '', modalParentId = null, modalNodeId = null;
+let ctxNodeId = null;
+
+/* ══════════ LAYOUT ══════════ */
+const NW = 150, NH = 54, HGAP = 42, VGAP = 90, PAD = 60;
+
+function buildPositions() {
+  const ids = new Set(nodes.map(n => n.id));
+  const roots = nodes.filter(n => !n.parent || !ids.has(n.parent));
+  const positions = {};
+  let leafIndex = 0;
+
+  function assign(id, depth) {
+    const kids = nodes.filter(c => c.parent === id);
+    if (!kids.length) {
+      positions[id] = { x: leafIndex * (NW + HGAP), y: depth * (NH + VGAP) };
+      leafIndex++;
+    } else {
+      kids.forEach(c => assign(c.id, depth + 1));
+      const firstX = positions[kids[0].id].x;
+      const lastX  = positions[kids[kids.length - 1].id].x;
+      positions[id] = { x: (firstX + lastX) / 2, y: depth * (NH + VGAP) };
+    }
+  }
+
+  roots.forEach(r => assign(r.id, 0));
+  return positions;
+}
+
+function getGen(id) {
+  let g = 0, cur = nodes.find(n => n.id === id);
+  const ids = new Set(nodes.map(n => n.id));
+  while (cur && cur.parent && ids.has(cur.parent)) {
+    g++;
+    cur = nodes.find(n => n.id === cur.parent);
+    if (!cur) break;
+  }
+  return g;
+}
+
+/* ══════════ RENDER ══════════ */
+function render() {
+  const wrap2 = document.getElementById('tree-canvas');
+  const svg = document.getElementById('svg-lines');
+  const pos = buildPositions();
+
+  Array.from(wrap2.children).forEach(el => { if (el !== svg) el.remove(); });
+  svg.innerHTML = '';
+
+  const xs = Object.values(pos).map(p => p.x);
+  const ys = Object.values(pos).map(p => p.y);
+  if (!xs.length) return;
+
+  const W = Math.max(...xs) + NW + PAD * 2;
+  const H = Math.max(...ys) + NH + PAD * 2;
+  wrap2.style.width = W + 'px'; wrap2.style.height = H + 'px';
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+
+  nodes.forEach(node => {
+    const p = pos[node.id]; if (!p) return;
+    const px = p.x + PAD, py = p.y + PAD;
+
+    // connector
+    if (node.parent) {
+      const pp = pos[node.parent];
+      if (pp) {
+        const x1 = pp.x + PAD + NW / 2, y1 = pp.y + PAD + NH;
+        const x2 = px + NW / 2, y2 = py, my = (y1 + y2) / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`);
+        path.classList.add('tree-line');
+        svg.appendChild(path);
+      }
+    }
+
+    const gen = getGen(node.id);
+    const div = document.createElement('div');
+    div.className = `node gen-${Math.min(gen, 4)}`;
+    div.style.left = px + 'px'; div.style.top = py + 'px';
+    div.dataset.id = node.id;
+
+    div.innerHTML = `
+      <div class="node-card">
+        <div class="node-header"></div>
+        <div class="node-body">
+          <div class="node-name">${node.name}</div>
+          <div class="node-hint">اضغط لإضافة ابن</div>
+        </div>
+      </div>
+      <div class="add-child-btn" title="إضافة ابن">+</div>`;
+
+    // click card → add child
+    div.querySelector('.node-card').addEventListener('click', e => {
+      e.stopPropagation();
+      openAddChildModal(node.id);
+    });
+    // + button → add child
+    div.querySelector('.add-child-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      openAddChildModal(node.id);
+    });
+    // right-click → context menu
+    div.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      showCtxMenu(node.id, e.clientX, e.clientY);
+    });
+
+    wrap2.appendChild(div);
+  });
+}
+
+/* ══════════ PAN & ZOOM ══════════ */
+let scale = 1, tx = 60, ty = 60;
+let dragging = false, startX, startY, startTX, startTY;
+
+const wrapEl = document.getElementById('canvas-wrap');
+const canvasEl = document.getElementById('tree-canvas');
+
+function applyTransform() {
+  canvasEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  document.getElementById('zoom-label').textContent = Math.round(scale * 100) + '%';
+}
+function zoom(d) { scale = Math.min(3, Math.max(0.2, scale + d)); applyTransform(); }
+function resetView() { scale = 1; tx = 60; ty = 60; applyTransform(); }
+
+wrapEl.addEventListener('mousedown', e => {
+  if (e.target.closest('.node-card') || e.target.closest('.add-child-btn')) return;
+  dragging = true; wrapEl.classList.add('dragging');
+  startX = e.clientX; startY = e.clientY; startTX = tx; startTY = ty;
+  hideCtxMenu();
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  tx = startTX + (e.clientX - startX); ty = startTY + (e.clientY - startY); applyTransform();
+});
+window.addEventListener('mouseup', () => { dragging = false; wrapEl.classList.remove('dragging'); });
+wrapEl.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? .1 : -.1); }, { passive: false });
+
+wrapEl.addEventListener('touchstart', e => {
+  if (e.target.closest('.node-card') || e.target.closest('.add-child-btn')) return;
+  dragging = true;
+  startX = e.touches[0].clientX; startY = e.touches[0].clientY; startTX = tx; startTY = ty;
+});
+wrapEl.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  tx = startTX + (e.touches[0].clientX - startX); ty = startTY + (e.touches[0].clientY - startY); applyTransform();
+});
+wrapEl.addEventListener('touchend', () => { dragging = false; });
+
+document.addEventListener('click', () => hideCtxMenu());
+
+/* ══════════ CONTEXT MENU ══════════ */
+function showCtxMenu(id, x, y) {
+  ctxNodeId = id;
+  const m = document.getElementById('ctx-menu');
+  m.classList.add('open');
+  m.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+  m.style.top = Math.min(y, window.innerHeight - 130) + 'px';
+}
+function hideCtxMenu() { document.getElementById('ctx-menu').classList.remove('open'); ctxNodeId = null; }
+
+function ctxAddChild() { const id = ctxNodeId; hideCtxMenu(); openAddChildModal(id); }
+function ctxEdit() { const id = ctxNodeId; hideCtxMenu(); openEditModal(id); }
+function ctxDelete() {
+  const id = ctxNodeId; hideCtxMenu();
+  const node = nodes.find(n => n.id === id); if (!node) return;
+  const cnt = countDesc(id);
+  if (!confirm(cnt > 0 ? `هل تريد حذف "${node.name}" و ${cnt} فرد من فروعه؟` : `هل تريد حذف "${node.name}"؟`)) return;
+  const rem = new Set([id]);
+  let ch = true;
+  while (ch) { ch = false; nodes.forEach(n => { if (!rem.has(n.id) && rem.has(n.parent)) { rem.add(n.id); ch = true; } }); }
+  nodes = nodes.filter(n => !rem.has(n.id));
+  render(); applyTransform();
+}
+function countDesc(id) { let c = 0; function w(nid) { nodes.filter(x => x.parent === nid).forEach(x => { c++; w(x.id); }); } w(id); return c; }
+
+/* ══════════ MODAL ══════════ */
+function openRootModal() {
+  modalMode = 'root'; modalParentId = null; modalNodeId = null;
+  document.getElementById('modal-title').textContent = 'إضافة جد / أصل جديد';
+  document.getElementById('modal-sub').textContent = 'سيظهر في أعلى الشجرة';
+  document.getElementById('f-name').value = '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-name').focus(), 80);
+}
+function openAddChildModal(pid) {
+  modalMode = 'add-child'; modalParentId = pid; modalNodeId = null;
+  const p = nodes.find(n => n.id === pid);
+  document.getElementById('modal-title').textContent = 'إضافة ابن';
+  document.getElementById('modal-sub').textContent = p ? `ابن لـ: ${p.name}` : '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-name').focus(), 80);
+}
+function openEditModal(id) {
+  modalMode = 'edit'; modalParentId = null; modalNodeId = id;
+  const node = nodes.find(n => n.id === id);
+  document.getElementById('modal-title').textContent = 'تعديل الاسم';
+  document.getElementById('modal-sub').textContent = '';
+  document.getElementById('f-name').value = node ? node.name : '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => { const el = document.getElementById('f-name'); el.focus(); el.select(); }, 80);
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function saveModal() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').style.borderColor = '#e74c3c'; return; }
+  document.getElementById('f-name').style.borderColor = '';
+  if (modalMode === 'root' || modalMode === 'add-child') {
+    nodes.push({ id: String(Date.now()), name, parent: modalParentId });
+  } else if (modalMode === 'edit') {
+    const node = nodes.find(n => n.id === modalNodeId);
+    if (node) node.name = name;
+  }
+  closeModal(); render(); applyTransform();
+}
+
+document.getElementById('f-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveModal();
+  if (e.key === 'Escape') closeModal();
+});
+
+/* ══════════ PRINT ══════════ */
+function printTree() {
+  const s = { scale, tx, ty };
+  scale = 1; tx = PAD; ty = PAD; applyTransform();
+  setTimeout(() => { window.print(); scale = s.scale; tx = s.tx; ty = s.ty; applyTransform(); }, 300);
+}
+
+/* ══════════ KEYBOARD ══════════ */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '+' || e.key === '=') zoom(.15);
+  if (e.key === '-') zoom(-.15);
+  if (e.key === '0') resetView();
+  if (e.key === 'Escape') { closeModal(); hideCtxMenu(); }
+});
+
+/* ══════════ INIT ══════════ */
+render();
+setTimeout(() => {
+  const vw = wrapEl.offsetWidth;
+  const cw = canvasEl.offsetWidth;
+  tx = Math.max(60, (vw - cw * scale) / 2); ty = 60;
+  applyTransform();
+}, 60);
+setTimeout(() => document.getElementById('tip').classList.add('hide'), 4500);
+</script>
+
+</body
